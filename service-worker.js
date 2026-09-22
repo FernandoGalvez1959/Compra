@@ -1,4 +1,4 @@
-const CACHE_NAME = "lista-compra-v1";
+const CACHE_NAME = "lista-compra-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -32,18 +32,35 @@ self.addEventListener("activate", function(event){
 
 self.addEventListener("fetch", function(event){
   if(event.request.method !== "GET") return;
-  event.respondWith(
-    caches.match(event.request).then(function(cached){
-      if(cached) return cached;
-      return fetch(event.request).then(function(response){
+
+  // La página principal (HTML) se pide siempre a la red primero, para que
+  // una actualización de la app se vea de inmediato; si no hay conexión,
+  // se sirve la última copia guardada.
+  if(event.request.mode === "navigate"){
+    event.respondWith(
+      fetch(event.request).then(function(response){
         var copy = response.clone();
-        caches.open(CACHE_NAME).then(function(cache){
-          cache.put(event.request, copy);
-        });
+        caches.open(CACHE_NAME).then(function(cache){ cache.put(event.request, copy); });
         return response;
       }).catch(function(){
-        return cached;
-      });
+        return caches.match(event.request).then(function(cached){
+          return cached || caches.match("./index.html");
+        });
+      })
+    );
+    return;
+  }
+
+  // El resto de archivos (iconos, manifest…) se sirven de la caché primero
+  // y se refrescan en segundo plano.
+  event.respondWith(
+    caches.match(event.request).then(function(cached){
+      var network = fetch(event.request).then(function(response){
+        var copy = response.clone();
+        caches.open(CACHE_NAME).then(function(cache){ cache.put(event.request, copy); });
+        return response;
+      }).catch(function(){ return cached; });
+      return cached || network;
     })
   );
 });
