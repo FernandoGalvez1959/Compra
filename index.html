@@ -108,31 +108,21 @@
     margin:0 0 14px;
   }
 
-  .progress-row{
-    display:flex;
+  .pending-label{
+    display:inline-flex;
     align-items:center;
-    gap:12px;
-  }
-  .progress-track{
-    flex:1;
-    height:8px;
-    border-radius:999px;
-    background:var(--surface-soft);
-    border:1px solid var(--border);
-    overflow:hidden;
-  }
-  .progress-fill{
-    height:100%;
-    background:var(--accent);
-    width:0%;
-    transition:width .35s ease;
-    border-radius:999px;
-  }
-  .progress-label{
-    font-size:0.82rem;
+    gap:7px;
+    font-size:0.85rem;
     color:var(--ink-soft);
     font-variant-numeric:tabular-nums;
-    white-space:nowrap;
+    background:var(--surface-soft);
+    border:1px solid var(--border);
+    padding:5px 12px;
+    border-radius:999px;
+  }
+  .pending-label strong{
+    color:var(--accent);
+    font-size:0.98rem;
   }
 
   main{display:flex;flex-direction:column;gap:22px;margin-top:6px;}
@@ -243,10 +233,12 @@
     font-size:0.98rem;
     overflow-wrap:anywhere;
   }
-  li.item.done .item-text{
-    color:var(--ink-faint);
-    text-decoration:line-through;
-    text-decoration-thickness:1.5px;
+  li.item.tobuy{
+    background:color-mix(in srgb, var(--cat-color, var(--accent)) 12%, transparent);
+  }
+  li.item.tobuy .item-text{
+    color:var(--ink);
+    font-weight:600;
   }
 
   button.del{
@@ -301,7 +293,7 @@
     justify-content:center;
     margin-top:6px;
   }
-  button.clear-done{
+  button.reset-all{
     border:1px solid var(--border);
     background:var(--surface);
     color:var(--ink-soft);
@@ -310,9 +302,9 @@
     border-radius:999px;
     cursor:pointer;
   }
-  button.clear-done:hover{border-color:#B0483F; color:#B0483F;}
-  button.clear-done:disabled{opacity:0.45; cursor:default;}
-  button.clear-done:disabled:hover{border-color:var(--border); color:var(--ink-soft);}
+  button.reset-all:hover{border-color:var(--accent); color:var(--accent);}
+  button.reset-all:disabled{opacity:0.45; cursor:default;}
+  button.reset-all:disabled:hover{border-color:var(--border); color:var(--ink-soft);}
 
   @media (max-width:420px){
     header.top h1{font-size:1.6rem;}
@@ -328,15 +320,12 @@
 <div class="wrap">
   <header class="top">
     <h1>Lista de la compra</h1>
-    <p class="sub" id="subtitle">Toca para marcar lo que ya está en el carro.</p>
-    <div class="progress-row">
-      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
-      <div class="progress-label" id="progressLabel">0 / 0</div>
-    </div>
+    <p class="sub" id="subtitle">Marca lo que necesitas comprar.</p>
+    <span class="pending-label"><strong id="pendingCount">0</strong> por comprar</span>
   </header>
   <main id="app"></main>
   <footer class="actions">
-    <button class="clear-done" id="clearDone">Vaciar marcados</button>
+    <button class="reset-all" id="resetAll">Desmarcar todo</button>
   </footer>
 </div>
 
@@ -353,14 +342,14 @@
         label: "Alimentación",
         color: "var(--cat-alimentacion)",
         items: [
-          {id:"a1", text:"Pan", done:false},
-          {id:"a2", text:"Leche", done:false},
-          {id:"a3", text:"Huevos", done:false},
-          {id:"a4", text:"Arroz", done:false},
-          {id:"a5", text:"Tomates", done:false},
-          {id:"a6", text:"Pollo", done:false},
-          {id:"a7", text:"Queso", done:false},
-          {id:"a8", text:"Aceite de oliva", done:false}
+          {id:"a1", text:"Pan", toBuy:false},
+          {id:"a2", text:"Leche", toBuy:false},
+          {id:"a3", text:"Huevos", toBuy:false},
+          {id:"a4", text:"Arroz", toBuy:false},
+          {id:"a5", text:"Tomates", toBuy:false},
+          {id:"a6", text:"Pollo", toBuy:false},
+          {id:"a7", text:"Queso", toBuy:false},
+          {id:"a8", text:"Aceite de oliva", toBuy:false}
         ]
       },
       {
@@ -368,10 +357,10 @@
         label: "Bebidas",
         color: "var(--cat-bebidas)",
         items: [
-          {id:"b1", text:"Agua", done:false},
-          {id:"b2", text:"Vino tinto", done:false},
-          {id:"b3", text:"Zumo de naranja", done:false},
-          {id:"b4", text:"Café", done:false}
+          {id:"b1", text:"Agua", toBuy:false},
+          {id:"b2", text:"Vino tinto", toBuy:false},
+          {id:"b3", text:"Zumo de naranja", toBuy:false},
+          {id:"b4", text:"Café", toBuy:false}
         ]
       },
       {
@@ -379,10 +368,10 @@
         label: "Aseo",
         color: "var(--cat-aseo)",
         items: [
-          {id:"s1", text:"Champú", done:false},
-          {id:"s2", text:"Gel de ducha", done:false},
-          {id:"s3", text:"Pasta de dientes", done:false},
-          {id:"s4", text:"Papel higiénico", done:false}
+          {id:"s1", text:"Champú", toBuy:false},
+          {id:"s2", text:"Gel de ducha", toBuy:false},
+          {id:"s3", text:"Pasta de dientes", toBuy:false},
+          {id:"s4", text:"Papel higiénico", toBuy:false}
         ]
       },
       {
@@ -390,10 +379,10 @@
         label: "Limpieza",
         color: "var(--cat-limpieza)",
         items: [
-          {id:"l1", text:"Detergente", done:false},
-          {id:"l2", text:"Lejía", done:false},
-          {id:"l3", text:"Bolsas de basura", done:false},
-          {id:"l4", text:"Limpiacristales", done:false}
+          {id:"l1", text:"Detergente", toBuy:false},
+          {id:"l2", text:"Lejía", toBuy:false},
+          {id:"l3", text:"Bolsas de basura", toBuy:false},
+          {id:"l4", text:"Limpiacristales", toBuy:false}
         ]
       },
       {
@@ -401,22 +390,76 @@
         label: "Varios",
         color: "var(--cat-varios)",
         items: [
-          {id:"v1", text:"Pilas", done:false},
-          {id:"v2", text:"Bombillas", done:false}
+          {id:"v1", text:"Pilas", toBuy:false},
+          {id:"v2", text:"Bombillas", toBuy:false}
         ]
       }
     ]
   };
+
+  function cloneDefault(){
+    return JSON.parse(JSON.stringify(DEFAULT_STATE));
+  }
+
+  // Combina lo guardado con la plantilla actual: conserva tus productos y
+  // marcas, pero añade cualquier categoría nueva (p.ej. "Varios") que tu
+  // copia guardada todavía no tenga, y normaliza el campo toBuy.
+  function reconcile(saved){
+    var fresh = cloneDefault();
+    var savedByKey = {};
+    saved.categories.forEach(function(c){
+      if(c && c.key) savedByKey[c.key] = c;
+    });
+
+    var merged = fresh.categories.map(function(defCat){
+      var existing = savedByKey[defCat.key];
+      if(!existing || !Array.isArray(existing.items)) return defCat;
+      delete savedByKey[defCat.key];
+      return {
+        key: defCat.key,
+        label: defCat.label,
+        color: defCat.color,
+        items: existing.items.map(function(it){
+          return {
+            id: it.id,
+            text: it.text,
+            toBuy: typeof it.toBuy === "boolean" ? it.toBuy : false
+          };
+        })
+      };
+    });
+
+    // Conserva categorías propias que el usuario hubiera añadido y que no estén en la plantilla.
+    Object.keys(savedByKey).forEach(function(key){
+      var extra = savedByKey[key];
+      if(extra && Array.isArray(extra.items)){
+        merged.push({
+          key: extra.key,
+          label: extra.label || extra.key,
+          color: extra.color || "var(--accent)",
+          items: extra.items.map(function(it){
+            return {
+              id: it.id,
+              text: it.text,
+              toBuy: typeof it.toBuy === "boolean" ? it.toBuy : false
+            };
+          })
+        });
+      }
+    });
+
+    return {categories: merged};
+  }
 
   function loadState(){
     try{
       var raw = window.localStorage.getItem(STORAGE_KEY);
       if(raw){
         var parsed = JSON.parse(raw);
-        if(parsed && Array.isArray(parsed.categories)) return parsed;
+        if(parsed && Array.isArray(parsed.categories)) return reconcile(parsed);
       }
     }catch(e){ /* localStorage no disponible: seguimos con el estado por defecto */ }
-    return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    return cloneDefault();
   }
 
   function saveState(){
@@ -438,14 +481,14 @@
   }
 
   function countAll(){
-    var total=0, done=0;
+    var total=0, toBuy=0;
     state.categories.forEach(function(cat){
       cat.items.forEach(function(it){
         total++;
-        if(it.done) done++;
+        if(it.toBuy) toBuy++;
       });
     });
-    return {total:total, done:done};
+    return {total:total, toBuy:toBuy};
   }
 
   function render(){
@@ -453,37 +496,35 @@
     app.innerHTML = state.categories.map(renderCategory).join("");
 
     var counts = countAll();
-    var pct = counts.total ? Math.round((counts.done/counts.total)*100) : 0;
-    document.getElementById("progressFill").style.width = pct + "%";
-    document.getElementById("progressLabel").textContent = counts.done + " / " + counts.total;
+    document.getElementById("pendingCount").textContent = counts.toBuy;
 
     var sub = document.getElementById("subtitle");
     if(counts.total === 0){
       sub.textContent = "Añade productos con el botón + de cada categoría.";
-    } else if(counts.done === counts.total){
-      sub.textContent = "¡Todo listo! Ya tienes todo marcado.";
+    } else if(counts.toBuy === 0){
+      sub.textContent = "Marca lo que necesitas comprar.";
     } else {
-      sub.textContent = "Toca para marcar lo que ya está en el carro.";
+      sub.textContent = "Desmarca cada producto según lo metas en el carro.";
     }
 
-    var clearBtn = document.getElementById("clearDone");
-    clearBtn.disabled = counts.done === 0;
+    var resetBtn = document.getElementById("resetAll");
+    resetBtn.disabled = counts.toBuy === 0;
 
     attachHandlers();
   }
 
   function renderCategory(cat){
-    var doneCount = cat.items.filter(function(i){return i.done;}).length;
+    var toBuyCount = cat.items.filter(function(i){return i.toBuy;}).length;
     var lastIndex = cat.items.length - 1;
     var itemsHtml = cat.items.map(function(it, idx){
       return (
-        '<li class="item' + (it.done ? ' done' : '') + '" data-cat="' + cat.key + '" data-id="' + it.id + '">' +
+        '<li class="item' + (it.toBuy ? ' tobuy' : '') + '" data-cat="' + cat.key + '" data-id="' + it.id + '">' +
           '<span class="reorder">' +
             '<button class="move up" type="button" data-dir="-1" aria-label="Subir ' + escapeHtml(it.text) + '"' + (idx === 0 ? ' disabled' : '') + '>&#9650;</button>' +
             '<button class="move down" type="button" data-dir="1" aria-label="Bajar ' + escapeHtml(it.text) + '"' + (idx === lastIndex ? ' disabled' : '') + '>&#9660;</button>' +
           '</span>' +
           '<label class="check">' +
-            '<input type="checkbox" ' + (it.done ? 'checked' : '') + ' aria-label="' + escapeHtml(it.text) + '">' +
+            '<input type="checkbox" ' + (it.toBuy ? 'checked' : '') + ' aria-label="' + escapeHtml(it.text) + '">' +
             '<span class="item-text">' + escapeHtml(it.text) + '</span>' +
           '</label>' +
           '<button class="del" type="button" aria-label="Eliminar ' + escapeHtml(it.text) + '">&times;</button>' +
@@ -495,7 +536,7 @@
       '<section class="category" style="--cat-color:' + cat.color + '">' +
         '<div class="cat-head">' +
           '<h2>' + escapeHtml(cat.label) + '</h2>' +
-          '<span class="cat-count">' + doneCount + '/' + cat.items.length + '</span>' +
+          '<span class="cat-count">' + toBuyCount + '/' + cat.items.length + '</span>' +
         '</div>' +
         '<ul class="items">' + itemsHtml + '</ul>' +
         '<form class="add-form" data-cat="' + cat.key + '">' +
@@ -516,7 +557,7 @@
         var li = cb.closest("li.item");
         var cat = findCat(li.dataset.cat);
         var item = cat.items.find(function(i){ return i.id === li.dataset.id; });
-        if(item){ item.done = cb.checked; }
+        if(item){ item.toBuy = cb.checked; }
         render();
         saveState();
       });
@@ -555,7 +596,7 @@
         var text = input.value.trim();
         if(!text) return;
         var cat = findCat(form.dataset.cat);
-        cat.items.push({id: uid(), text: text, done:false});
+        cat.items.push({id: uid(), text: text, toBuy:false});
         input.value = "";
         render();
         saveState();
@@ -565,9 +606,9 @@
     });
   }
 
-  document.getElementById("clearDone").addEventListener("click", function(){
+  document.getElementById("resetAll").addEventListener("click", function(){
     state.categories.forEach(function(cat){
-      cat.items = cat.items.filter(function(i){ return !i.done; });
+      cat.items.forEach(function(i){ i.toBuy = false; });
     });
     render();
     saveState();
