@@ -189,22 +189,67 @@
   }
   .cat-head{
     display:flex;
-    align-items:baseline;
+    align-items:center;
     justify-content:space-between;
     gap:10px;
     padding:12px 16px 6px;
+  }
+  .cat-head-info{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    min-width:0;
   }
   .cat-head h2{
     font-size:1.15rem;
     font-weight:600;
     margin:0;
     color:var(--cat-color, var(--ink));
+    overflow-wrap:anywhere;
   }
   .cat-count{
     font-size:0.78rem;
     color:var(--ink-faint);
     font-variant-numeric:tabular-nums;
+    flex-shrink:0;
   }
+  .cat-head-actions{
+    display:flex;
+    align-items:center;
+    gap:1px;
+    flex-shrink:0;
+  }
+  form.cat-rename-form{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex:1;
+    min-width:0;
+  }
+  form.cat-rename-form input[type="text"]{
+    flex:1;
+    min-width:0;
+    background:var(--surface-soft);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:5px 9px;
+    font-size:1rem;
+    font-family:"Fraunces", Georgia, serif;
+    color:var(--ink);
+  }
+  form.cat-rename-form button{
+    border:none;
+    background:transparent;
+    color:var(--ink-faint);
+    font-size:1.1rem;
+    line-height:1;
+    padding:4px 6px;
+    border-radius:7px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  form.cat-rename-form button[type="submit"]:hover{background:var(--surface-soft); color:var(--good);}
+  form.cat-rename-form button.cat-rename-cancel:hover{background:var(--surface-soft); color:#B0483F;}
 
   ul.items{list-style:none;margin:0;padding:0 8px 4px;}
   ul.items:empty::after{
@@ -227,6 +272,11 @@
     background:var(--surface-soft);
     box-shadow:0 6px 16px rgba(0,0,0,0.18);
     opacity:0.92;
+  }
+
+  section.category.dragging{
+    box-shadow:0 10px 24px rgba(0,0,0,0.18);
+    opacity:0.94;
   }
 
   label.check{
@@ -314,6 +364,46 @@
   }
   button.drag-handle:hover{background:var(--surface-soft); color:var(--ink);}
   li.item.dragging button.drag-handle{cursor:grabbing;}
+
+  button.cat-edit, button.cat-delete{
+    border:none;
+    background:transparent;
+    color:var(--ink-faint);
+    font-size:0.95rem;
+    line-height:1;
+    padding:5px 6px;
+    border-radius:7px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  button.cat-edit:hover{background:var(--surface-soft); color:var(--ink);}
+  button.cat-delete:hover{background:var(--surface-soft); color:#B0483F;}
+
+  button.cat-drag-handle{
+    border:none;
+    background:transparent;
+    color:var(--ink-faint);
+    width:26px;
+    height:28px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    padding:0;
+    border-radius:7px;
+    cursor:grab;
+    touch-action:none;
+    flex-shrink:0;
+  }
+  button.cat-drag-handle span{
+    width:14px;
+    height:2px;
+    border-radius:1px;
+    background:currentColor;
+  }
+  button.cat-drag-handle:hover{background:var(--surface-soft); color:var(--ink);}
+  section.category.dragging button.cat-drag-handle{cursor:grabbing;}
 
   button.del:focus-visible, input:focus-visible, button:focus-visible{
     outline:2px solid var(--accent);
@@ -575,41 +665,40 @@
   }
 
   // Combina lo recibido (de la nube o de una copia de seguridad) con la
-  // plantilla actual: conserva los productos, las marcas y las categorías
-  // propias, pero añade cualquier categoría nueva de la plantilla que
-  // todavía no tenga.
+  // plantilla: conserva el orden, los nombres, los productos y las marcas
+  // tal como llegan. Las categorías por defecto que faltan (porque el
+  // usuario las eliminó) no se vuelven a añadir solas.
   function reconcile(saved){
-    var fresh = cloneDefault();
-    var savedByKey = {};
-    saved.categories.forEach(function(c){
-      if(c && c.key) savedByKey[c.key] = c;
-    });
+    var defByKey = {};
+    cloneDefault().categories.forEach(function(c){ defByKey[c.key] = c; });
 
-    var merged = fresh.categories.map(function(defCat){
-      var existing = savedByKey[defCat.key];
-      if(!existing) return defCat;
-      delete savedByKey[defCat.key];
-      return {
-        key: defCat.key,
-        label: defCat.label,
-        color: defCat.color,
-        // Firebase borra las listas vacías al guardarlas: si "items" no
-        // llega, es que la categoría se quedó sin productos, no que haya
-        // que descartarla.
-        items: normalizeItems(existing.items || [])
-      };
-    });
-
-    Object.keys(savedByKey).forEach(function(key){
-      var extra = savedByKey[key];
-      if(extra){
+    var merged = [];
+    var seen = {};
+    var incoming = Array.isArray(saved.categories) ? saved.categories : [];
+    incoming.forEach(function(c){
+      if(!c || !c.key || seen[c.key]) return;
+      seen[c.key] = true;
+      var def = defByKey[c.key];
+      if(def){
         merged.push({
-          key: extra.key,
-          label: extra.label || extra.key,
-          color: extra.color || null,
-          lightColor: extra.lightColor || null,
-          darkColor: extra.darkColor || null,
-          items: normalizeItems(extra.items || [])
+          key: def.key,
+          // Se respeta el nombre si el usuario ha renombrado la categoría;
+          // el color de las categorías por defecto se mantiene fijo.
+          label: c.label || def.label,
+          color: def.color,
+          // Firebase borra las listas vacías al guardarlas: si "items" no
+          // llega, es que la categoría se quedó sin productos, no que haya
+          // que descartarla.
+          items: normalizeItems(c.items || [])
+        });
+      } else {
+        merged.push({
+          key: c.key,
+          label: c.label || c.key,
+          color: c.color || null,
+          lightColor: c.lightColor || null,
+          darkColor: c.darkColor || null,
+          items: normalizeItems(c.items || [])
         });
       }
     });
@@ -656,6 +745,8 @@
   var state = loadLocalCache();
   var onlyPending = false;
   var dragState = null;
+  var catDragState = null;
+  var editingCatKey = null;
 
   function uid(){
     return Math.random().toString(36).slice(2,9);
@@ -755,11 +846,32 @@
       ? ('--cat-color:' + cat.color)
       : ('--cat-light:' + (cat.lightColor || 'var(--accent)') + ';--cat-dark:' + (cat.darkColor || cat.lightColor || 'var(--accent)'));
 
+    var titleHtml = (cat.key === editingCatKey)
+      ? (
+          '<form class="cat-rename-form" data-cat="' + cat.key + '">' +
+            '<input type="text" class="cat-rename-input" value="' + escapeHtml(cat.label) + '" autocomplete="off">' +
+            '<button type="submit" aria-label="Guardar nombre">&check;</button>' +
+            '<button type="button" class="cat-rename-cancel" aria-label="Cancelar">&times;</button>' +
+          '</form>'
+        )
+      : '<h2>' + escapeHtml(cat.label) + '</h2>';
+
+    var headActionsHtml = (onlyPending || cat.key === editingCatKey) ? '' : (
+      '<div class="cat-head-actions">' +
+        '<button class="cat-edit" type="button" data-cat="' + cat.key + '" aria-label="Renombrar ' + escapeHtml(cat.label) + '">&#9998;</button>' +
+        '<button class="cat-delete" type="button" data-cat="' + cat.key + '" aria-label="Eliminar categoría ' + escapeHtml(cat.label) + '">&#128465;</button>' +
+        '<button class="cat-drag-handle" type="button" data-cat="' + cat.key + '" aria-label="Reordenar categoría ' + escapeHtml(cat.label) + '"><span></span><span></span><span></span></button>' +
+      '</div>'
+    );
+
     return (
-      '<section class="category" style="' + catStyle + '">' +
+      '<section class="category" data-cat="' + cat.key + '" style="' + catStyle + '">' +
         '<div class="cat-head">' +
-          '<h2>' + escapeHtml(cat.label) + '</h2>' +
-          '<span class="cat-count">' + toBuyCount + '/' + cat.items.length + '</span>' +
+          '<div class="cat-head-info">' +
+            titleHtml +
+            (cat.key === editingCatKey ? '' : '<span class="cat-count">' + toBuyCount + '/' + cat.items.length + '</span>') +
+          '</div>' +
+          headActionsHtml +
         '</div>' +
         '<ul class="items">' + itemsHtml + '</ul>' +
         (onlyPending ? '' :
@@ -814,6 +926,35 @@
     }
   }
 
+  function onCatDragMove(e){
+    if(!catDragState) return;
+    var el = document.elementFromPoint(e.clientX, e.clientY);
+    var overSection = el && el.closest ? el.closest('section.category[data-cat]') : null;
+    if(!overSection) return;
+    var overKey = overSection.dataset.cat;
+    if(overKey === catDragState.catKey) return;
+    var fromIdx = state.categories.findIndex(function(c){ return c.key === catDragState.catKey; });
+    var toIdx = state.categories.findIndex(function(c){ return c.key === overKey; });
+    if(fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+    var moved = state.categories.splice(fromIdx, 1)[0];
+    state.categories.splice(toIdx, 0, moved);
+    render();
+    var newSection = document.querySelector('section.category[data-cat="' + catDragState.catKey + '"]');
+    if(newSection) newSection.classList.add("dragging");
+  }
+
+  function onCatDragEnd(){
+    document.removeEventListener("pointermove", onCatDragMove);
+    document.removeEventListener("pointerup", onCatDragEnd);
+    document.removeEventListener("pointercancel", onCatDragEnd);
+    if(catDragState){
+      var section = document.querySelector('section.category[data-cat="' + catDragState.catKey + '"]');
+      if(section) section.classList.remove("dragging");
+      catDragState = null;
+      pushState();
+    }
+  }
+
   function attachHandlers(){
     document.querySelectorAll("li.item input[type=checkbox]").forEach(function(cb){
       cb.addEventListener("change", function(){
@@ -846,6 +987,74 @@
         document.addEventListener("pointerup", onDragEnd);
         document.addEventListener("pointercancel", onDragEnd);
       });
+    });
+
+    document.querySelectorAll("button.cat-edit").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        editingCatKey = btn.dataset.cat;
+        render();
+        var input = document.querySelector('form.cat-rename-form[data-cat="' + editingCatKey + '"] input');
+        if(input){ input.focus(); input.select(); }
+      });
+    });
+
+    document.querySelectorAll("button.cat-delete").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var cat = findCat(btn.dataset.cat);
+        if(!cat) return;
+        var msg = cat.items.length
+          ? '¿Eliminar la categoría "' + cat.label + '" y sus ' + cat.items.length + ' productos?'
+          : '¿Eliminar la categoría "' + cat.label + '"?';
+        if(!window.confirm(msg)) return;
+        state.categories = state.categories.filter(function(c){ return c.key !== btn.dataset.cat; });
+        render();
+        pushState();
+      });
+    });
+
+    document.querySelectorAll("button.cat-drag-handle").forEach(function(handle){
+      handle.addEventListener("pointerdown", function(e){
+        e.preventDefault();
+        catDragState = { catKey: handle.dataset.cat };
+        var section = handle.closest("section.category");
+        if(section) section.classList.add("dragging");
+        document.addEventListener("pointermove", onCatDragMove);
+        document.addEventListener("pointerup", onCatDragEnd);
+        document.addEventListener("pointercancel", onCatDragEnd);
+      });
+    });
+
+    document.querySelectorAll("form.cat-rename-form").forEach(function(form){
+      form.addEventListener("submit", function(ev){
+        ev.preventDefault();
+        var input = form.querySelector("input");
+        var text = input.value.trim();
+        var cat = findCat(form.dataset.cat);
+        editingCatKey = null;
+        if(cat && text){
+          cat.label = text;
+          render();
+          pushState();
+        } else {
+          render();
+        }
+      });
+      var cancelBtn = form.querySelector(".cat-rename-cancel");
+      if(cancelBtn){
+        cancelBtn.addEventListener("click", function(){
+          editingCatKey = null;
+          render();
+        });
+      }
+      var input = form.querySelector("input");
+      if(input){
+        input.addEventListener("keydown", function(e){
+          if(e.key === "Escape"){
+            editingCatKey = null;
+            render();
+          }
+        });
+      }
     });
 
     document.querySelectorAll("form.add-form").forEach(function(form){
