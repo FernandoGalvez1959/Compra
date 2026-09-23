@@ -472,9 +472,10 @@
 
   <section class="backup-section">
     <h3>Copia de seguridad</h3>
-    <p class="backup-hint">Los cambios ya se sincronizan solos entre tus dispositivos. Usa esto solo como respaldo extra, o si necesitas pasar tu catálogo a otro sitio.</p>
+    <p class="backup-hint">Los cambios ya se sincronizan solos entre tus dispositivos. Usa "Descargar copia" solo como respaldo extra. Usa "Descargar catálogo" para pasar tus categorías y productos (sin marcas) a Compra Gijón: descárgalo aquí y pulsa "Restaurar copia" en la otra app.</p>
     <div class="backup-actions">
       <button type="button" id="exportBackup">Descargar copia</button>
+      <button type="button" id="exportCatalog">Descargar catálogo</button>
       <button type="button" id="importBackupBtn">Restaurar copia</button>
       <input type="file" id="importBackupInput" accept="application/json" hidden>
     </div>
@@ -945,7 +946,40 @@
     reader.readAsText(file);
   }
 
+  function exportCatalog(){
+    try{
+      var catalogOnly = {
+        categories: state.categories.map(function(cat){
+          return {
+            key: cat.key,
+            label: cat.label,
+            color: cat.color || null,
+            lightColor: cat.lightColor || null,
+            darkColor: cat.darkColor || null,
+            items: cat.items.map(function(it){
+              return {id: it.id, text: it.text, toBuy: false};
+            })
+          };
+        })
+      };
+      var data = JSON.stringify(catalogOnly, null, 2);
+      var blob = new Blob([data], {type:"application/json"});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      var stamp = new Date().toISOString().slice(0,10);
+      a.href = url;
+      a.download = "catalogo-compra-" + stamp + ".json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    }catch(e){
+      window.alert("No se pudo generar el catálogo.");
+    }
+  }
+
   document.getElementById("exportBackup").addEventListener("click", exportBackup);
+  document.getElementById("exportCatalog").addEventListener("click", exportCatalog);
   document.getElementById("importBackupBtn").addEventListener("click", function(){
     document.getElementById("importBackupInput").click();
   });
