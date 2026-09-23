@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Compra Otero</title>
-<meta name="description" content="Lista de la compra de Otero: editable, con categorías propias, marcado de pendientes, orden manual y copia de seguridad.">
+<meta name="description" content="Lista de la compra de Otero: editable, con categorías propias, marcado de pendientes, orden manual, sincronización entre dispositivos y copia de seguridad.">
 <meta name="theme-color" content="#4B7A5C">
 
 <link rel="manifest" href="manifest.json">
@@ -34,6 +34,8 @@
     --cat-aseo:#9A6FB0;
     --cat-limpieza:#2F9C8F;
     --cat-varios:#8C7A4E;
+    --good:#4B7A5C;
+    --warn:#B98A2E;
     --shadow: 0 1px 2px rgba(42,36,28,0.06), 0 4px 14px rgba(42,36,28,0.05);
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -54,6 +56,8 @@
       --cat-aseo:#BA98D6;
       --cat-limpieza:#5CC4B5;
       --cat-varios:#C7B074;
+      --good:#6FA482;
+      --warn:#E8C36F;
       --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 14px rgba(0,0,0,0.25);
     }
   }
@@ -72,6 +76,8 @@
     --cat-aseo:#BA98D6;
     --cat-limpieza:#5CC4B5;
     --cat-varios:#C7B074;
+    --good:#6FA482;
+    --warn:#E8C36F;
     --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 14px rgba(0,0,0,0.25);
   }
 
@@ -105,8 +111,26 @@
   header.top .sub{
     color:var(--ink-soft);
     font-size:0.92rem;
+    margin:0 0 10px;
+  }
+
+  p.sync-status{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.76rem;
+    color:var(--ink-faint);
     margin:0 0 14px;
   }
+  p.sync-status .dot{
+    width:7px;height:7px;
+    border-radius:50%;
+    background:var(--ink-faint);
+    flex-shrink:0;
+    transition:background .2s ease;
+  }
+  p.sync-status.online .dot{background:var(--good);}
+  p.sync-status.offline .dot{background:var(--warn);}
 
   button.pending-toggle{
     display:inline-flex;
@@ -427,6 +451,7 @@
   <header class="top">
     <h1>Compra Otero</h1>
     <p class="sub" id="subtitle">Marca lo que necesitas comprar.</p>
+    <p class="sync-status" id="syncStatus"><span class="dot"></span><span id="syncText">Conectando…</span></p>
     <button class="pending-toggle" id="pendingToggle" type="button">
       <strong id="pendingCount">0</strong>
       <span class="toggle-label">por comprar — ver solo estos</span>
@@ -447,7 +472,7 @@
 
   <section class="backup-section">
     <h3>Copia de seguridad</h3>
-    <p class="backup-hint">Descarga un archivo con tu catálogo y tus marcas, o recupéralo en otro dispositivo.</p>
+    <p class="backup-hint">Los cambios ya se sincronizan solos entre tus dispositivos. Usa esto solo como respaldo extra, o si necesitas pasar tu catálogo a otro sitio.</p>
     <div class="backup-actions">
       <button type="button" id="exportBackup">Descargar copia</button>
       <button type="button" id="importBackupBtn">Restaurar copia</button>
@@ -456,12 +481,13 @@
   </section>
 </div>
 
-<script>
-(function(){
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+
   "use strict";
 
   var STORAGE_KEY = "lista-compra-state";
-  var DEFAULT_KEYS = ["alimentacion","bebidas","aseo","limpieza","varios"];
   var CUSTOM_PALETTE = [
     {light:"#B0546B", dark:"#E0A0B4"},
     {light:"#5B63B7", dark:"#A6ABE8"},
@@ -547,10 +573,10 @@
     });
   }
 
-  // Combina lo guardado con la plantilla actual: conserva tus productos,
-  // tus marcas y tus categorías propias, pero añade cualquier categoría
-  // nueva de la plantilla (p.ej. "Varios") que tu copia guardada todavía
-  // no tenga.
+  // Combina lo recibido (de la nube o de una copia de seguridad) con la
+  // plantilla actual: conserva los productos, las marcas y las categorías
+  // propias, pero añade cualquier categoría nueva de la plantilla que
+  // todavía no tenga.
   function reconcile(saved){
     var fresh = cloneDefault();
     var savedByKey = {};
@@ -587,7 +613,7 @@
     return {categories: merged};
   }
 
-  function loadState(){
+  function loadLocalCache(){
     try{
       var raw = window.localStorage.getItem(STORAGE_KEY);
       if(raw){
@@ -598,13 +624,32 @@
     return cloneDefault();
   }
 
-  function saveState(){
+  function saveLocalCache(){
     try{
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }catch(e){ /* no se pudo guardar: la sesión sigue funcionando igualmente */ }
+    }catch(e){ /* no se pudo guardar en caché local: seguimos igualmente */ }
   }
 
-  var state = loadState();
+  // --- Firebase: sincronización en tiempo real entre dispositivos ---
+  var firebaseConfig = {
+    apiKey: "AIzaSyDpHYS6KmkBzkGsafX959iwWR-ngvJqRe0",
+    authDomain: "lista-de-compra-otero.firebaseapp.com",
+    databaseURL: "https://lista-de-compra-otero-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "lista-de-compra-otero",
+    storageBucket: "lista-de-compra-otero.firebasestorage.app",
+    messagingSenderId: "1016856782548",
+    appId: "1:1016856782548:web:6ce49acd5bad697d9cbd41"
+  };
+
+  var fbApp = initializeApp(firebaseConfig);
+  var db = getDatabase(fbApp);
+  var stateRef = ref(db, "state");
+  var connectedRef = ref(db, ".info/connected");
+
+  // Estado en memoria: arranca con la última copia guardada en este
+  // dispositivo (para que la app se vea al instante, incluso sin conexión)
+  // y en cuanto llega la primera respuesta de Firebase, la nube manda.
+  var state = loadLocalCache();
   var onlyPending = false;
   var dragState = null;
 
@@ -723,6 +768,17 @@
     );
   }
 
+  // Guarda una copia local instantánea y envía el estado completo a
+  // Firebase; los demás dispositivos lo reciben en cuanto tengan conexión.
+  function pushState(){
+    saveLocalCache();
+    set(stateRef, state).catch(function(){
+      /* sin conexión ahora mismo: el cambio queda en este dispositivo y
+         se reintentará solo en cuanto vuelva la conexión, sin perder nada
+         mientras la página siga abierta */
+    });
+  }
+
   function onDragMove(e){
     if(!dragState) return;
     var el = document.elementFromPoint(e.clientX, e.clientY);
@@ -750,7 +806,7 @@
       var li = document.querySelector('li.item[data-cat="' + dragState.catKey + '"][data-id="' + dragState.itemId + '"]');
       if(li) li.classList.remove("dragging");
       dragState = null;
-      saveState();
+      pushState();
     }
   }
 
@@ -762,7 +818,7 @@
         var item = cat.items.find(function(i){ return i.id === li.dataset.id; });
         if(item){ item.toBuy = cb.checked; }
         render();
-        saveState();
+        pushState();
       });
     });
 
@@ -772,7 +828,7 @@
         var cat = findCat(li.dataset.cat);
         cat.items = cat.items.filter(function(i){ return i.id !== li.dataset.id; });
         render();
-        saveState();
+        pushState();
       });
     });
 
@@ -798,7 +854,7 @@
         cat.items.push({id: uid(), text: text, toBuy:false});
         input.value = "";
         render();
-        saveState();
+        pushState();
         var freshInput = document.querySelector('form.add-form[data-cat="' + form.dataset.cat + '"] input[name=text]');
         if(freshInput) freshInput.focus();
       });
@@ -810,7 +866,7 @@
       cat.items.forEach(function(i){ i.toBuy = false; });
     });
     render();
-    saveState();
+    pushState();
   });
 
   document.getElementById("pendingToggle").addEventListener("click", function(){
@@ -847,7 +903,7 @@
 
     input.value = "";
     render();
-    saveState();
+    pushState();
   });
 
   function exportBackup(){
@@ -877,7 +933,7 @@
         state = reconcile(parsed);
         onlyPending = false;
         render();
-        saveState();
+        pushState();
         window.alert("Copia restaurada correctamente.");
       }catch(e){
         window.alert("El archivo no parece una copia de seguridad válida de esta lista.");
@@ -906,7 +962,33 @@
       navigator.serviceWorker.register("service-worker.js").catch(function(){ /* sin service worker: la app sigue funcionando igual */ });
     });
   }
-})();
+
+  // Escucha los cambios en la nube: al primer dato, sustituye lo local;
+  // si la base de datos está vacía (primera vez), la siembra con lo que
+  // ya hubiera en este dispositivo.
+  onValue(stateRef, function(snapshot){
+    var val = snapshot.val();
+    if(val && Array.isArray(val.categories)){
+      state = reconcile(val);
+      saveLocalCache();
+      render();
+    } else {
+      set(stateRef, state).catch(function(){});
+    }
+  }, function(){
+    /* sin permiso o sin conexión: seguimos con la copia local */
+  });
+
+  var syncStatusEl = document.getElementById("syncStatus");
+  var syncTextEl = document.getElementById("syncText");
+  onValue(connectedRef, function(snapshot){
+    var connected = snapshot.val() === true;
+    syncStatusEl.classList.toggle("online", connected);
+    syncStatusEl.classList.toggle("offline", !connected);
+    syncTextEl.textContent = connected
+      ? "Sincronizado entre tus dispositivos"
+      : "Sin conexión — los cambios se guardan en este dispositivo";
+  });
 </script>
 </body>
 </html>
