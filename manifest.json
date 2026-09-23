@@ -1,7 +1,7 @@
 {
-  "name": "Lista de la Compra",
-  "short_name": "Lista",
-  "description": "Lista de la compra editable con categorías de alimentación, bebidas, aseo y limpieza.",
+  "name": "Compra Otero",
+  "short_name": "Otero",
+  "description": "Lista de la compra de Otero: editable, con categorías de alimentación, bebidas, aseo, limpieza y varios.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
