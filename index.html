@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lista de la Compra</title>
-<meta name="description" content="Lista de la compra editable con categorías de alimentación, bebidas, aseo, limpieza y varios.">
+<meta name="description" content="Lista de la compra editable con categorías propias, marcado de pendientes, orden manual y copia de seguridad.">
 <meta name="theme-color" content="#4B7A5C">
 
 <link rel="manifest" href="manifest.json">
@@ -84,7 +84,7 @@
     padding-inline:16px;
     padding-block:0 32px;
   }
-  h1,h2{font-family:"Fraunces", Georgia, serif;}
+  h1,h2,h3{font-family:"Fraunces", Georgia, serif;}
 
   .wrap{max-width:600px;margin:0 auto;}
 
@@ -108,26 +108,46 @@
     margin:0 0 14px;
   }
 
-  .pending-label{
+  button.pending-toggle{
     display:inline-flex;
     align-items:center;
     gap:7px;
     font-size:0.85rem;
+    font-family:inherit;
     color:var(--ink-soft);
     font-variant-numeric:tabular-nums;
     background:var(--surface-soft);
     border:1px solid var(--border);
-    padding:5px 12px;
+    padding:7px 14px;
     border-radius:999px;
+    cursor:pointer;
   }
-  .pending-label strong{
+  button.pending-toggle strong{
     color:var(--accent);
     font-size:0.98rem;
   }
+  button.pending-toggle:hover{border-color:var(--accent);}
+  button.pending-toggle.active{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:var(--accent-ink);
+  }
+  button.pending-toggle.active strong{ color:var(--accent-ink); }
 
-  main{display:flex;flex-direction:column;gap:22px;margin-top:6px;}
+  main{display:flex;flex-direction:column;gap:18px;margin-top:6px;}
+
+  p.empty-note{
+    color:var(--ink-soft);
+    font-size:0.92rem;
+    background:var(--surface);
+    border:1px dashed var(--border);
+    border-radius:14px;
+    padding:18px;
+    text-align:center;
+  }
 
   section.category{
+    --cat-color: var(--cat-light, var(--accent));
     background:var(--surface);
     border:1px solid var(--border);
     border-left:4px solid var(--cat-color, var(--accent));
@@ -135,12 +155,20 @@
     box-shadow:var(--shadow);
     overflow:hidden;
   }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) section.category{
+      --cat-color: var(--cat-dark, var(--cat-light, var(--accent)));
+    }
+  }
+  :root[data-theme="dark"] section.category{
+    --cat-color: var(--cat-dark, var(--cat-light, var(--accent)));
+  }
   .cat-head{
     display:flex;
     align-items:baseline;
     justify-content:space-between;
     gap:10px;
-    padding:14px 16px 8px;
+    padding:12px 16px 6px;
   }
   .cat-head h2{
     font-size:1.15rem;
@@ -154,47 +182,28 @@
     font-variant-numeric:tabular-nums;
   }
 
-  ul.items{list-style:none;margin:0;padding:2px 8px 6px;}
+  ul.items{list-style:none;margin:0;padding:0 8px 4px;}
   ul.items:empty::after{
     content:"Sin productos todavía";
     display:block;
     color:var(--ink-faint);
     font-size:0.88rem;
-    padding:10px 8px 14px;
+    padding:8px 8px 12px;
     font-style:italic;
   }
   li.item{
     display:flex;
     align-items:center;
-    gap:6px;
-    padding:8px 6px;
-    border-radius:9px;
+    gap:4px;
+    padding:3px 4px;
+    border-radius:8px;
   }
   li.item:hover{background:var(--surface-soft);}
-
-  .reorder{
-    display:flex;
-    flex-direction:column;
-    flex-shrink:0;
+  li.item.dragging{
+    background:var(--surface-soft);
+    box-shadow:0 6px 16px rgba(0,0,0,0.18);
+    opacity:0.92;
   }
-  button.move{
-    border:none;
-    background:transparent;
-    color:var(--ink-faint);
-    width:22px;
-    height:16px;
-    line-height:1;
-    padding:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-    border-radius:5px;
-    font-size:0.7rem;
-  }
-  button.move:hover{background:var(--surface-soft); color:var(--ink);}
-  button.move:disabled{opacity:0.25; cursor:default;}
-  button.move:disabled:hover{background:transparent; color:var(--ink-faint);}
 
   label.check{
     display:flex;
@@ -203,12 +212,13 @@
     flex:1;
     min-width:0;
     cursor:pointer;
+    padding-block:4px;
   }
   input[type="checkbox"]{
     appearance:none;
-    width:21px;height:21px;
-    min-width:21px;
-    border-radius:7px;
+    width:20px;height:20px;
+    min-width:20px;
+    border-radius:6px;
     border:1.6px solid var(--border);
     background:var(--surface);
     display:grid;
@@ -230,7 +240,8 @@
   input[type="checkbox"]:checked::after{transform:scale(1);}
 
   .item-text{
-    font-size:0.98rem;
+    font-size:0.97rem;
+    line-height:1.2;
     overflow-wrap:anywhere;
   }
   li.item.tobuy{
@@ -245,13 +256,41 @@
     border:none;
     background:transparent;
     color:var(--ink-faint);
-    font-size:1.1rem;
+    font-size:1.05rem;
     line-height:1;
-    padding:4px 6px;
+    padding:4px 5px;
     border-radius:7px;
     cursor:pointer;
+    flex-shrink:0;
   }
   button.del:hover{background:var(--surface-soft); color:#B0483F;}
+
+  button.drag-handle{
+    border:none;
+    background:transparent;
+    color:var(--ink-faint);
+    width:28px;
+    height:30px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    padding:0;
+    border-radius:7px;
+    cursor:grab;
+    touch-action:none;
+    flex-shrink:0;
+  }
+  button.drag-handle span{
+    width:15px;
+    height:2px;
+    border-radius:1px;
+    background:currentColor;
+  }
+  button.drag-handle:hover{background:var(--surface-soft); color:var(--ink);}
+  li.item.dragging button.drag-handle{cursor:grabbing;}
+
   button.del:focus-visible, input:focus-visible, button:focus-visible{
     outline:2px solid var(--accent);
     outline-offset:2px;
@@ -260,9 +299,9 @@
   form.add-form{
     display:flex;
     gap:8px;
-    padding:10px 16px 16px;
+    padding:8px 16px 14px;
     border-top:1px solid var(--border);
-    margin-top:4px;
+    margin-top:2px;
   }
   form.add-form input[type="text"]{
     flex:1;
@@ -288,16 +327,49 @@
   }
   form.add-form button:hover{filter:brightness(1.06);}
 
+  section.add-category{
+    margin-top:4px;
+  }
+  section.add-category form{
+    display:flex;
+    gap:8px;
+  }
+  section.add-category input[type="text"]{
+    flex:1;
+    min-width:0;
+    background:var(--surface);
+    border:1px dashed var(--border);
+    border-radius:12px;
+    padding:11px 14px;
+    font-size:0.92rem;
+    color:var(--ink);
+    font-family:inherit;
+  }
+  section.add-category input[type="text"]::placeholder{color:var(--ink-faint);}
+  section.add-category button{
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--ink-soft);
+    padding:0 16px;
+    border-radius:12px;
+    font-size:0.88rem;
+    font-family:inherit;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  section.add-category button:hover{border-color:var(--accent); color:var(--accent);}
+
   footer.actions{
     display:flex;
     justify-content:center;
-    margin-top:6px;
+    margin-top:10px;
   }
   button.reset-all{
     border:1px solid var(--border);
     background:var(--surface);
     color:var(--ink-soft);
     font-size:0.85rem;
+    font-family:inherit;
     padding:9px 16px;
     border-radius:999px;
     cursor:pointer;
@@ -305,6 +377,40 @@
   button.reset-all:hover{border-color:var(--accent); color:var(--accent);}
   button.reset-all:disabled{opacity:0.45; cursor:default;}
   button.reset-all:disabled:hover{border-color:var(--border); color:var(--ink-soft);}
+
+  section.backup-section{
+    margin-top:22px;
+    padding:14px 16px 16px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+  }
+  section.backup-section h3{
+    font-size:0.98rem;
+    margin:0 0 4px;
+    color:var(--ink);
+  }
+  .backup-hint{
+    font-size:0.82rem;
+    color:var(--ink-soft);
+    margin:0 0 10px;
+  }
+  .backup-actions{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .backup-actions button{
+    border:1px solid var(--border);
+    background:var(--surface-soft);
+    color:var(--ink);
+    padding:8px 14px;
+    border-radius:10px;
+    font-size:0.85rem;
+    font-family:inherit;
+    cursor:pointer;
+  }
+  .backup-actions button:hover{border-color:var(--accent); color:var(--accent);}
 
   @media (max-width:420px){
     header.top h1{font-size:1.6rem;}
@@ -321,12 +427,33 @@
   <header class="top">
     <h1>Lista de la compra</h1>
     <p class="sub" id="subtitle">Marca lo que necesitas comprar.</p>
-    <span class="pending-label"><strong id="pendingCount">0</strong> por comprar</span>
+    <button class="pending-toggle" id="pendingToggle" type="button">
+      <strong id="pendingCount">0</strong>
+      <span class="toggle-label">por comprar — ver solo estos</span>
+    </button>
   </header>
   <main id="app"></main>
+
+  <section class="add-category" id="addCategorySection">
+    <form id="addCategoryForm">
+      <input type="text" id="newCategoryName" placeholder="Nueva categoría… (p. ej. Mascotas)" autocomplete="off">
+      <button type="submit">Crear categoría</button>
+    </form>
+  </section>
+
   <footer class="actions">
     <button class="reset-all" id="resetAll">Desmarcar todo</button>
   </footer>
+
+  <section class="backup-section">
+    <h3>Copia de seguridad</h3>
+    <p class="backup-hint">Descarga un archivo con tu catálogo y tus marcas, o recupéralo en otro dispositivo.</p>
+    <div class="backup-actions">
+      <button type="button" id="exportBackup">Descargar copia</button>
+      <button type="button" id="importBackupBtn">Restaurar copia</button>
+      <input type="file" id="importBackupInput" accept="application/json" hidden>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -334,6 +461,15 @@
   "use strict";
 
   var STORAGE_KEY = "lista-compra-state";
+  var DEFAULT_KEYS = ["alimentacion","bebidas","aseo","limpieza","varios"];
+  var CUSTOM_PALETTE = [
+    {light:"#B0546B", dark:"#E0A0B4"},
+    {light:"#5B63B7", dark:"#A6ABE8"},
+    {light:"#2E8F9E", dark:"#6FCBDA"},
+    {light:"#B98A2E", dark:"#E8C36F"},
+    {light:"#6E9E3A", dark:"#A9D66E"},
+    {light:"#6B7280", dark:"#A6ADBB"}
+  ];
 
   var DEFAULT_STATE = {
     categories: [
@@ -401,9 +537,20 @@
     return JSON.parse(JSON.stringify(DEFAULT_STATE));
   }
 
-  // Combina lo guardado con la plantilla actual: conserva tus productos y
-  // marcas, pero añade cualquier categoría nueva (p.ej. "Varios") que tu
-  // copia guardada todavía no tenga, y normaliza el campo toBuy.
+  function normalizeItems(items){
+    return items.map(function(it){
+      return {
+        id: it.id,
+        text: it.text,
+        toBuy: typeof it.toBuy === "boolean" ? it.toBuy : false
+      };
+    });
+  }
+
+  // Combina lo guardado con la plantilla actual: conserva tus productos,
+  // tus marcas y tus categorías propias, pero añade cualquier categoría
+  // nueva de la plantilla (p.ej. "Varios") que tu copia guardada todavía
+  // no tenga.
   function reconcile(saved){
     var fresh = cloneDefault();
     var savedByKey = {};
@@ -419,31 +566,20 @@
         key: defCat.key,
         label: defCat.label,
         color: defCat.color,
-        items: existing.items.map(function(it){
-          return {
-            id: it.id,
-            text: it.text,
-            toBuy: typeof it.toBuy === "boolean" ? it.toBuy : false
-          };
-        })
+        items: normalizeItems(existing.items)
       };
     });
 
-    // Conserva categorías propias que el usuario hubiera añadido y que no estén en la plantilla.
     Object.keys(savedByKey).forEach(function(key){
       var extra = savedByKey[key];
       if(extra && Array.isArray(extra.items)){
         merged.push({
           key: extra.key,
           label: extra.label || extra.key,
-          color: extra.color || "var(--accent)",
-          items: extra.items.map(function(it){
-            return {
-              id: it.id,
-              text: it.text,
-              toBuy: typeof it.toBuy === "boolean" ? it.toBuy : false
-            };
-          })
+          color: extra.color || null,
+          lightColor: extra.lightColor || null,
+          darkColor: extra.darkColor || null,
+          items: normalizeItems(extra.items)
         });
       }
     });
@@ -469,9 +605,18 @@
   }
 
   var state = loadState();
+  var onlyPending = false;
+  var dragState = null;
 
   function uid(){
     return Math.random().toString(36).slice(2,9);
+  }
+
+  function slugify(text){
+    return (text.toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-+|-+$)/g, "")) || "categoria";
   }
 
   function escapeHtml(str){
@@ -491,9 +636,24 @@
     return {total:total, toBuy:toBuy};
   }
 
+  function findCat(key){
+    return state.categories.find(function(c){ return c.key === key; });
+  }
+
   function render(){
     var app = document.getElementById("app");
-    app.innerHTML = state.categories.map(renderCategory).join("");
+    var visibleCats = onlyPending
+      ? state.categories.filter(function(c){ return c.items.some(function(i){ return i.toBuy; }); })
+      : state.categories;
+
+    if(onlyPending && visibleCats.length === 0){
+      app.innerHTML = '<p class="empty-note">Todavía no has marcado ningún producto. Vuelve al catálogo completo para elegir qué necesitas.</p>';
+    } else {
+      app.innerHTML = visibleCats.map(renderCategory).join("");
+    }
+
+    var addCatSection = document.getElementById("addCategorySection");
+    addCatSection.hidden = onlyPending;
 
     var counts = countAll();
     document.getElementById("pendingCount").textContent = counts.toBuy;
@@ -501,11 +661,21 @@
     var sub = document.getElementById("subtitle");
     if(counts.total === 0){
       sub.textContent = "Añade productos con el botón + de cada categoría.";
-    } else if(counts.toBuy === 0){
-      sub.textContent = "Marca lo que necesitas comprar.";
+    } else if(onlyPending){
+      sub.textContent = counts.toBuy === 0
+        ? "Ya no queda nada pendiente."
+        : "Desmarca cada producto según lo metas en el carro.";
     } else {
-      sub.textContent = "Desmarca cada producto según lo metas en el carro.";
+      sub.textContent = counts.toBuy === 0
+        ? "Marca lo que necesitas comprar."
+        : "Cuando vayas a la tienda, pulsa “ver solo estos” para ir más rápido.";
     }
+
+    var toggleBtn = document.getElementById("pendingToggle");
+    toggleBtn.classList.toggle("active", onlyPending);
+    toggleBtn.querySelector(".toggle-label").textContent = onlyPending
+      ? "pendientes — ver todo el catálogo"
+      : "por comprar — ver solo estos";
 
     var resetBtn = document.getElementById("resetAll");
     resetBtn.disabled = counts.toBuy === 0;
@@ -514,41 +684,74 @@
   }
 
   function renderCategory(cat){
-    var toBuyCount = cat.items.filter(function(i){return i.toBuy;}).length;
-    var lastIndex = cat.items.length - 1;
-    var itemsHtml = cat.items.map(function(it, idx){
+    var toBuyCount = cat.items.filter(function(i){ return i.toBuy; }).length;
+    var itemsForView = onlyPending ? cat.items.filter(function(i){ return i.toBuy; }) : cat.items;
+
+    var itemsHtml = itemsForView.map(function(it){
       return (
         '<li class="item' + (it.toBuy ? ' tobuy' : '') + '" data-cat="' + cat.key + '" data-id="' + it.id + '">' +
-          '<span class="reorder">' +
-            '<button class="move up" type="button" data-dir="-1" aria-label="Subir ' + escapeHtml(it.text) + '"' + (idx === 0 ? ' disabled' : '') + '>&#9650;</button>' +
-            '<button class="move down" type="button" data-dir="1" aria-label="Bajar ' + escapeHtml(it.text) + '"' + (idx === lastIndex ? ' disabled' : '') + '>&#9660;</button>' +
-          '</span>' +
           '<label class="check">' +
             '<input type="checkbox" ' + (it.toBuy ? 'checked' : '') + ' aria-label="' + escapeHtml(it.text) + '">' +
             '<span class="item-text">' + escapeHtml(it.text) + '</span>' +
           '</label>' +
-          '<button class="del" type="button" aria-label="Eliminar ' + escapeHtml(it.text) + '">&times;</button>' +
+          (onlyPending ? '' :
+            '<button class="del" type="button" aria-label="Eliminar ' + escapeHtml(it.text) + '">&times;</button>' +
+            '<button class="drag-handle" type="button" aria-label="Reordenar ' + escapeHtml(it.text) + '"><span></span><span></span><span></span></button>'
+          ) +
         '</li>'
       );
     }).join("");
 
+    var catStyle = cat.color
+      ? ('--cat-color:' + cat.color)
+      : ('--cat-light:' + (cat.lightColor || 'var(--accent)') + ';--cat-dark:' + (cat.darkColor || cat.lightColor || 'var(--accent)'));
+
     return (
-      '<section class="category" style="--cat-color:' + cat.color + '">' +
+      '<section class="category" style="' + catStyle + '">' +
         '<div class="cat-head">' +
           '<h2>' + escapeHtml(cat.label) + '</h2>' +
           '<span class="cat-count">' + toBuyCount + '/' + cat.items.length + '</span>' +
         '</div>' +
         '<ul class="items">' + itemsHtml + '</ul>' +
-        '<form class="add-form" data-cat="' + cat.key + '">' +
-          '<input type="text" name="text" placeholder="Añadir a ' + escapeHtml(cat.label.toLowerCase()) + '&hellip;" autocomplete="off">' +
-          '<button type="submit" aria-label="Añadir">+</button>' +
-        '</form>' +
+        (onlyPending ? '' :
+          '<form class="add-form" data-cat="' + cat.key + '">' +
+            '<input type="text" name="text" placeholder="Añadir a ' + escapeHtml(cat.label.toLowerCase()) + '&hellip;" autocomplete="off">' +
+            '<button type="submit" aria-label="Añadir">+</button>' +
+          '</form>'
+        ) +
       '</section>'
     );
   }
 
-  function findCat(key){
-    return state.categories.find(function(c){ return c.key === key; });
+  function onDragMove(e){
+    if(!dragState) return;
+    var el = document.elementFromPoint(e.clientX, e.clientY);
+    var overLi = el && el.closest ? el.closest('li.item[data-cat="' + dragState.catKey + '"]') : null;
+    if(!overLi) return;
+    var overId = overLi.dataset.id;
+    if(overId === dragState.itemId) return;
+    var cat = findCat(dragState.catKey);
+    if(!cat) return;
+    var fromIdx = cat.items.findIndex(function(i){ return i.id === dragState.itemId; });
+    var toIdx = cat.items.findIndex(function(i){ return i.id === overId; });
+    if(fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+    var moved = cat.items.splice(fromIdx, 1)[0];
+    cat.items.splice(toIdx, 0, moved);
+    render();
+    var newLi = document.querySelector('li.item[data-cat="' + dragState.catKey + '"][data-id="' + dragState.itemId + '"]');
+    if(newLi) newLi.classList.add("dragging");
+  }
+
+  function onDragEnd(){
+    document.removeEventListener("pointermove", onDragMove);
+    document.removeEventListener("pointerup", onDragEnd);
+    document.removeEventListener("pointercancel", onDragEnd);
+    if(dragState){
+      var li = document.querySelector('li.item[data-cat="' + dragState.catKey + '"][data-id="' + dragState.itemId + '"]');
+      if(li) li.classList.remove("dragging");
+      dragState = null;
+      saveState();
+    }
   }
 
   function attachHandlers(){
@@ -563,22 +766,6 @@
       });
     });
 
-    document.querySelectorAll("li.item button.move").forEach(function(btn){
-      btn.addEventListener("click", function(){
-        var li = btn.closest("li.item");
-        var cat = findCat(li.dataset.cat);
-        var idx = cat.items.findIndex(function(i){ return i.id === li.dataset.id; });
-        var dir = parseInt(btn.dataset.dir, 10);
-        var target = idx + dir;
-        if(target < 0 || target >= cat.items.length) return;
-        var tmp = cat.items[idx];
-        cat.items[idx] = cat.items[target];
-        cat.items[target] = tmp;
-        render();
-        saveState();
-      });
-    });
-
     document.querySelectorAll("li.item button.del").forEach(function(btn){
       btn.addEventListener("click", function(){
         var li = btn.closest("li.item");
@@ -586,6 +773,18 @@
         cat.items = cat.items.filter(function(i){ return i.id !== li.dataset.id; });
         render();
         saveState();
+      });
+    });
+
+    document.querySelectorAll("li.item button.drag-handle").forEach(function(handle){
+      handle.addEventListener("pointerdown", function(e){
+        e.preventDefault();
+        var li = handle.closest("li.item");
+        dragState = { catKey: li.dataset.cat, itemId: li.dataset.id };
+        li.classList.add("dragging");
+        document.addEventListener("pointermove", onDragMove);
+        document.addEventListener("pointerup", onDragEnd);
+        document.addEventListener("pointercancel", onDragEnd);
       });
     });
 
@@ -612,6 +811,92 @@
     });
     render();
     saveState();
+  });
+
+  document.getElementById("pendingToggle").addEventListener("click", function(){
+    onlyPending = !onlyPending;
+    render();
+  });
+
+  document.getElementById("addCategoryForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var input = document.getElementById("newCategoryName");
+    var text = input.value.trim();
+    if(!text) return;
+
+    var base = slugify(text);
+    var key = base;
+    var n = 2;
+    var existingKeys = state.categories.map(function(c){ return c.key; });
+    while(existingKeys.indexOf(key) !== -1){
+      key = base + "-" + n;
+      n++;
+    }
+
+    var customCount = state.categories.filter(function(c){ return c.lightColor; }).length;
+    var palette = CUSTOM_PALETTE[customCount % CUSTOM_PALETTE.length];
+
+    state.categories.push({
+      key: key,
+      label: text,
+      color: null,
+      lightColor: palette.light,
+      darkColor: palette.dark,
+      items: []
+    });
+
+    input.value = "";
+    render();
+    saveState();
+  });
+
+  function exportBackup(){
+    try{
+      var data = JSON.stringify(state, null, 2);
+      var blob = new Blob([data], {type:"application/json"});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      var stamp = new Date().toISOString().slice(0,10);
+      a.href = url;
+      a.download = "lista-compra-copia-" + stamp + ".json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    }catch(e){
+      window.alert("No se pudo generar la copia de seguridad.");
+    }
+  }
+
+  function importBackup(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var parsed = JSON.parse(reader.result);
+        if(!parsed || !Array.isArray(parsed.categories)) throw new Error("formato inválido");
+        state = reconcile(parsed);
+        onlyPending = false;
+        render();
+        saveState();
+        window.alert("Copia restaurada correctamente.");
+      }catch(e){
+        window.alert("El archivo no parece una copia de seguridad válida de esta lista.");
+      }
+    };
+    reader.onerror = function(){
+      window.alert("No se pudo leer el archivo.");
+    };
+    reader.readAsText(file);
+  }
+
+  document.getElementById("exportBackup").addEventListener("click", exportBackup);
+  document.getElementById("importBackupBtn").addEventListener("click", function(){
+    document.getElementById("importBackupInput").click();
+  });
+  document.getElementById("importBackupInput").addEventListener("change", function(e){
+    var file = e.target.files && e.target.files[0];
+    if(file) importBackup(file);
+    e.target.value = "";
   });
 
   render();
