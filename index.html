@@ -587,26 +587,29 @@
 
     var merged = fresh.categories.map(function(defCat){
       var existing = savedByKey[defCat.key];
-      if(!existing || !Array.isArray(existing.items)) return defCat;
+      if(!existing) return defCat;
       delete savedByKey[defCat.key];
       return {
         key: defCat.key,
         label: defCat.label,
         color: defCat.color,
-        items: normalizeItems(existing.items)
+        // Firebase borra las listas vacías al guardarlas: si "items" no
+        // llega, es que la categoría se quedó sin productos, no que haya
+        // que descartarla.
+        items: normalizeItems(existing.items || [])
       };
     });
 
     Object.keys(savedByKey).forEach(function(key){
       var extra = savedByKey[key];
-      if(extra && Array.isArray(extra.items)){
+      if(extra){
         merged.push({
           key: extra.key,
           label: extra.label || extra.key,
           color: extra.color || null,
           lightColor: extra.lightColor || null,
           darkColor: extra.darkColor || null,
-          items: normalizeItems(extra.items)
+          items: normalizeItems(extra.items || [])
         });
       }
     });
